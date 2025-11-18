@@ -2,9 +2,35 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:ppkd_absensi/constant/endpoint.dart';
+import 'package:ppkd_absensi/models/login_model.dart';
 import 'package:ppkd_absensi/models/register_model.dart';
 
 class AuthAPI {
+  static Future<LoginModel> loginUser({
+  required String email,
+  required String password,
+}) async {
+  final url = Uri.parse(Endpoint.login);
+
+  final response = await http.post(
+    url,
+    headers: {"Accept": "application/json"},
+    body: {
+      "email": email,
+      "password": password,
+    },
+  );
+
+  log("LOGIN (${response.statusCode})");
+  log(response.body);
+
+  if (response.statusCode == 200) {
+    return LoginModel.fromJson(json.decode(response.body));
+  } else {
+    final error = json.decode(response.body);
+    throw Exception(error["message"] ?? "Login gagal");
+  }
+}
  static Future<RegisterModel> registerUser({
   required String email,
   required String name,
@@ -39,6 +65,8 @@ class AuthAPI {
   }
 }
 }
+
+
 
 class TrainingAPI {
   static Future<List<Training>> getTrainings() async {

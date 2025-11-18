@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:ppkd_absensi/views/login_screen.dart'; // halaman pertama aplikasi kamu
+import 'package:ppkd_absensi/views/bottom_nav.dart';
+import 'package:ppkd_absensi/views/login_screen.dart';
+import 'package:ppkd_absensi/views/register_screen.dart';
+import 'package:ppkd_absensi/views/splash_screen.dart'; // halaman pertama aplikasi kamu
+import 'package:intl/date_symbol_data_local.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+   // Inisialisasi locale id_ID
+  await initializeDateFormatting('id_ID', null);
   // Inisialisasi database untuk desktop
   // sqfliteFfiInit();
   // databaseFactory = databaseFactoryFfi;
@@ -26,17 +32,15 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      // initialRoute: '/splash',
-      // routes: {
-      //   '/splash': (context) => const SplashScreen(),
-      //   '/login': (context) => const LoginPosyanduWidget(),
-      //   '/register': (context) => const RegisterScreenWidget(),
-      //   '/bottomnav': (context) => const BottomNav(), // Admin
-      //   '/bottomuser': (context) => const BottomNavUser(), // User
-      //   '/user': (context) => const DashboardWidget(),
-      // },
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreenWidget(),
+        '/login': (context) => const LoginScreenWidget(),
+        '/register': (context) => const RegisterScreenWidget(),
+        '/bottomnav': (context) => const BottomNavWidget(),
+      },
 
-      home: const LoginScreenWidget(), // halaman awal
+      // home: const SplashScreenWidget(), // halaman awal
     );
   }
 }

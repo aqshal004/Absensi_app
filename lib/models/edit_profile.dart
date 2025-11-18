@@ -1,21 +1,19 @@
 import 'dart:convert';
 
-import 'package:ppkd_absensi/models/register_model.dart';
+EditProfileModel editProfileModelFromJson(String str) => EditProfileModel.fromJson(json.decode(str));
 
-LoginModel loginModelFromJson(String str) => LoginModel.fromJson(json.decode(str));
+String editProfileModelToJson(EditProfileModel data) => json.encode(data.toJson());
 
-String loginModelToJson(LoginModel data) => json.encode(data.toJson());
-
-class LoginModel {
+class EditProfileModel {
     String? message;
     Data? data;
 
-    LoginModel({
+    EditProfileModel({
         this.message,
         this.data,
     });
 
-    factory LoginModel.fromJson(Map<String, dynamic> json) => LoginModel(
+    factory EditProfileModel.fromJson(Map<String, dynamic> json) => EditProfileModel(
         message: json["message"],
         data: json["data"] == null ? null : Data.fromJson(json["data"]),
     );
@@ -27,26 +25,6 @@ class LoginModel {
 }
 
 class Data {
-    String? token;
-    User? user;
-
-    Data({
-        this.token,
-        this.user,
-    });
-
-    factory Data.fromJson(Map<String, dynamic> json) => Data(
-        token: json["token"],
-        user: json["user"] == null ? null : User.fromJson(json["user"]),
-    );
-
-    Map<String, dynamic> toJson() => {
-        "token": token,
-        "user": user?.toJson(),
-    };
-}
-
-class User {
     int? id;
     String? name;
     String? email;
@@ -55,13 +33,11 @@ class User {
     DateTime? updatedAt;
     String? batchId;
     String? trainingId;
-    String? jenisKelamin;
+    dynamic jenisKelamin;
     String? profilePhoto;
     String? onesignalPlayerId;
-    Batch? batch;
-    Training? training;
 
-    User({
+    Data({
         this.id,
         this.name,
         this.email,
@@ -73,11 +49,9 @@ class User {
         this.jenisKelamin,
         this.profilePhoto,
         this.onesignalPlayerId,
-        this.batch,
-        this.training,
     });
 
-    factory User.fromJson(Map<String, dynamic> json) => User(
+    factory Data.fromJson(Map<String, dynamic> json) => Data(
         id: json["id"],
         name: json["name"],
         email: json["email"],
@@ -89,8 +63,6 @@ class User {
         jenisKelamin: json["jenis_kelamin"],
         profilePhoto: json["profile_photo"],
         onesignalPlayerId: json["onesignal_player_id"],
-        batch: json["batch"] == null ? null : Batch.fromJson(json["batch"]),
-        training: json["training"] == null ? null : Training.fromJson(json["training"]),
     );
 
     Map<String, dynamic> toJson() => {
@@ -105,8 +77,5 @@ class User {
         "jenis_kelamin": jenisKelamin,
         "profile_photo": profilePhoto,
         "onesignal_player_id": onesignalPlayerId,
-        "batch": batch?.toJson(),
-        "training": training?.toJson(),
     };
 }
-

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ppkd_absensi/models/register_model.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
-import 'package:ppkd_absensi/service/api.dart';
+import 'package:ppkd_absensi/service/api_register.dart';
 import 'package:ppkd_absensi/views/login_screen.dart';
 import 'package:ppkd_absensi/widgets/custom_widget.dart';
 

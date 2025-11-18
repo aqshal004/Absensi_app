@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ppkd_absensi/pages/dashboard.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
+import 'package:ppkd_absensi/service/api_register.dart';
+import 'package:ppkd_absensi/views/bottom_nav.dart';
 import 'package:ppkd_absensi/views/register_screen.dart';
 import 'package:ppkd_absensi/widgets/custom_widget.dart';
 
@@ -62,32 +63,58 @@ class _LoginScreenWidgetState extends State<LoginScreenWidget> with TickerProvid
     super.dispose();
   }
 
-  void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      
-      // Simulasi login
-      Future.delayed(const Duration(seconds: 2), () async {
-        if (mounted) {
-          setState(() => _isLoading = false);
-           // Simpan status login
-          await PreferenceHandler.saveLogin(true);
-          // await PreferenceHandler.saveUserData("Nama User", _emailController.text);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login berhasil!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          //  Tambahkan navigasi ke dashboard di sini
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardWidget()),
-        );
-        }
-      });
+void _handleLogin() async {
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
+
+    try {
+      // Panggil API login
+      final login = await AuthAPI.loginUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // Ambil token dari API
+      final token = login.data?.token;
+      if (token == null) {
+        throw Exception("Token tidak ditemukan");
+      }
+
+      // Simpan login & token
+      await PreferenceHandler.saveLogin(true);
+      await PreferenceHandler.saveToken(token);
+
+      if (!mounted) return;
+
+      // Notifikasi sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login berhasil!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigasi ke BottomNav
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const BottomNavWidget()),
+      );
+
+    } catch (e) {
+      // Jika error API / koneksi
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
