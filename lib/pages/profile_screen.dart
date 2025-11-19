@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:ppkd_absensi/pages/editprofile_screen.dart';
+import 'package:ppkd_absensi/preferences/preferences_handler.dart';
 import 'package:ppkd_absensi/service/api_profile.dart';
 import 'package:ppkd_absensi/views/login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreenWidget extends StatefulWidget {
   const ProfileScreenWidget({Key? key}) : super(key: key);
@@ -363,13 +365,16 @@ class _ProfileScreenWidgetState extends State<ProfileScreenWidget> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LoginScreenWidget(),
-                ),
-              );
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('token'); 
+              await PreferenceHandler.removeLogin();
+              Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/login',
+              (Route<dynamic> route) => false,
+            );
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Logout berhasil'),

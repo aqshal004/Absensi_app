@@ -94,9 +94,10 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>with TickerProvi
   if (!mounted) return;
 
   // CEK LOGIN TERLEBIH DAHULU
-  bool isLogin = await PreferenceHandler.getLogin();
+  var isLogin = await PreferenceHandler.getLogin();
+  // print(isLogin);
 
-  if (isLogin) {
+  if (isLogin == true && isLogin != null) {
     // Sudah login → masuk dashboard
     Navigator.pushReplacementNamed(context, '/bottomnav');
   } else {
