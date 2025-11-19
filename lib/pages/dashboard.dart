@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ppkd_absensi/pages/Location_Detail.dart';
+import 'dart:async';
+import 'package:ppkd_absensi/pages/checkin.dart';
+import 'package:ppkd_absensi/pages/editprofile_screen.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
+import 'package:ppkd_absensi/service/api_absentoday.dart';
+import 'package:ppkd_absensi/service/api_attendance.dart';
 import 'package:ppkd_absensi/service/api_profile.dart';
-import 'package:ppkd_absensi/views/login_screen.dart';
+
+// --- DEFINISI WARNA (Tetap dipertahankan) ---
+const Color _primaryBackgroundColor = Color(0xFFFFFFFF);
+const Color _cardBackgroundColor = Color(0xFFFFFFFF);
+const Color _darkTextColor = Color(0xFF212121);
+const Color _mediumTextColor = Color(0xFF616161);
+const Color _lightTextColor = Color(0xFF9E9E9E);
+const Color _accentGray = Color(0xFF424242);
+const Color _dividerColor = Color(0xFFE0E0E0);
+const Color _successColor = Color(0xFF4CAF50);
+const Color _warningColor = Color(0xFFFF9800);
+const Color _dangerColor = Color(0xFFF44336);
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -14,46 +29,146 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String userName = "";
+  String userEmail = "";
+  int userBatchId = 0;
+  int userTrainingId = 0;
+  String userGender = "";
+  
   bool isLoadingCheckIn = false;
   bool isLoadingCheckOut = false;
   
-  // Dummy data absen hari ini
-  String? checkInTime;
-  String? checkOutTime;
+  String? checkInTime = "--:--";
+  String? checkOutTime = "--:--";
   
-  // Dummy statistik
   int totalHadir = 22;
   int totalIzin = 2;
   int totalAlpha = 1;
   int totalTerlambat = 3;
+
+  // Live Time
+  String currentTime = '';
+  String currentDate = '';
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
     _loadTodayAttendance();
+    Intl.defaultLocale = 'id';
+    _updateTime();
+    _startTimer();
+    // _loadFromApi();
   }
 
-  Future<void> _loadUserProfile() async {
-  try {
-    final profile = await ProfileAPI.getProfile();
-    if (mounted) {
-      setState(() {
-        userName = profile.data?.name ?? "User";
-      });
-    }
-  } catch (e) {
-    print("Gagal memuat profil: $e");
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
-}
-  void _loadTodayAttendance() {
-    // Simulasi load data absen hari ini
-    // TODO: Replace with actual API call
-    setState(() {
-      checkInTime = "08:15";
-      checkOutTime = null; // Belum absen pulang
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _updateTime();
     });
   }
+
+  void _updateTime() {
+    if (mounted) {
+      setState(() {
+        currentTime = DateFormat('HH:mm:ss').format(DateTime.now());
+        currentDate = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(DateTime.now());
+      });
+    }
+  }
+
+//   // --- FUNCTION INTACT (TIDAK DIUBAH) ---
+//   Future<void> _loadFromApi() async {
+//   final token = await PreferenceHandler.getToken();
+//   final data = await AttendanceApi.getTodayAttendance(token: token ?? "");
+
+//   if (mounted && data != null) {
+//     setState(() {
+//       checkInTime = data.checkInTime;
+//       checkOutTime = data.checkOutTime;
+//     });
+//   }
+// }
+
+   // =============================
+  // LOAD USER PROFILE
+  // =============================
+  Future<void> _loadUserProfile() async {
+    try {
+      final userData = await PreferenceHandler.getUserData();
+      if (mounted) {
+        setState(() {
+          userName = userData['name'] ?? "";
+          userEmail = userData['email'] ?? "";
+        });
+      }
+
+      final profile = await ProfileAPI.getProfile();
+      if (mounted) {
+        setState(() {
+          userName = profile.data?.name ?? userName;
+        });
+      }
+    } catch (e) {
+      print("Gagal memuat profil: $e");
+    }
+  }
+
+  Future<void> _navigateToEditProfile() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfileScreen(
+          name: userName,
+          email: userEmail,
+          batchId: userBatchId,
+          trainingId: userTrainingId,
+          gender: userGender,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      final userData = await PreferenceHandler.getUserData();
+      setState(() {
+        userName = userData['name'] ?? userName;
+        userEmail = userData['email'] ?? userEmail;
+      });
+      _loadUserProfile();
+    }
+  }
+
+  // =============================
+  // LOAD TODAY ATTENDANCE
+  // =============================
+ Future<void> _loadTodayAttendance() async {
+  final token = await PreferenceHandler.getToken();
+  if (token == null) return;
+
+  try {
+    final result = await AbsenTodayAPI.getToday(token: token);
+
+    setState(() {
+      checkInTime = result.data?.checkInTime ?? "--:--";
+      checkOutTime = result.data?.checkOutTime ?? "--:--";
+    });
+
+  } catch (e) {
+    print("Error today attendance: $e");
+
+    setState(() {
+      checkInTime = "--:--";
+      checkOutTime = "--:--";
+    });
+  }
+}
+
+
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -68,151 +183,105 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _getCurrentDate() {
-    return DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(DateTime.now());
-  }
-
+ // =============================
+  // CHECK IN
+  // =============================
   Future<void> _handleCheckIn() async {
-    setState(() => isLoadingCheckIn = true);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CheckInScreen()),
+    );
 
-    try {
-      // TODO: Implement Geolocator
-      // Position position = await Geolocator.getCurrentPosition(
-      //   desiredAccuracy: LocationAccuracy.high,
-      // );
-      
-      // Simulasi data
-      double latitude = -6.2088;
-      double longitude = 106.8456;
-      
-      // TODO: Implement API Call
-      // final response = await http.post(
-      //   Uri.parse('YOUR_API_URL/absen-check-in'),
-      //   headers: {'Content-Type': 'application/json'},
-      //   body: jsonEncode({
-      //     'latitude': latitude,
-      //     'longitude': longitude,
-      //     'timestamp': DateTime.now().toIso8601String(),
-      //   }),
-      // );
+    if (result == true) {
+      await _loadTodayAttendance();
 
-      // Simulasi delay
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
-        setState(() {
-          checkInTime = DateFormat('HH:mm').format(DateTime.now());
-          isLoadingCheckIn = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✓ Absen masuk berhasil!'),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoadingCheckIn = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ Absen masuk berhasil!'),
+          backgroundColor: _successColor,
+        ),
+      );
     }
   }
 
-  Future<void> _handleCheckOut() async {
+
+   Future<void> _handleCheckOut() async {
     setState(() => isLoadingCheckOut = true);
 
     try {
-      // TODO: Implement Geolocator
-      double latitude = -6.2088;
-      double longitude = 106.8456;
-      
-      // TODO: Implement API Call
       await Future.delayed(const Duration(seconds: 2));
 
-      if (mounted) {
-        setState(() {
-          checkOutTime = DateFormat('HH:mm').format(DateTime.now());
-          isLoadingCheckOut = false;
-        });
+      if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✓ Absen pulang berhasil!'),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
+      setState(() {
+        checkOutTime = DateFormat('HH:mm').format(DateTime.now());
+        isLoadingCheckOut = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ Absen pulang berhasil!'),
+          backgroundColor: _successColor,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => isLoadingCheckOut = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            content: Text("Error: $e"),
+            backgroundColor: _dangerColor,
           ),
         );
       }
     }
   }
 
-  void _showLocationDetail() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LocationDetailScreen(),
-      ),
-    );
-  }
+    // =============================
+  // CHECK RULES
+  // =============================
+  bool get canCheckIn {
+  // Bisa check-in hanya jika BELUM ADA jam check-in
+  return checkInTime == null ||
+         checkInTime == "--:--" ||
+         checkInTime!.trim().isEmpty;
+}
 
+bool get canCheckOut {
+  // Bisa check-out jika SUDAH check-in DAN BELUM check-out
+  final sudahCheckIn = checkInTime != null &&
+                       checkInTime != "--:--" &&
+                       checkInTime!.trim().isNotEmpty;
+
+  final belumCheckOut = checkOutTime == null ||
+                        checkOutTime == "--:--" ||
+                        checkOutTime!.trim().isEmpty;
+
+  return sudahCheckIn && belumCheckOut;
+}
+
+
+  // --- WIDGET BUILDER MODIFIKASI ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: _primaryBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Section
               _buildHeader(),
-              
-              const SizedBox(height: 24),
-
-              // Absen Cards
+              const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    _buildAbsenCard(),
+                    _buildLiveTimeCard(),
                     const SizedBox(height: 20),
-                    _buildAbsenButtons(),
+                    _buildQuickAbsenButtons(),
                     const SizedBox(height: 24),
-                    _buildStatisticsSection(),
-                    const SizedBox(height: 20),
-                    _buildTodayAttendance(),
+                    _buildStatisticsGrid(),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -226,79 +295,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGreeting(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _mediumTextColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _darkTextColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: _navigateToEditProfile,
+            borderRadius: BorderRadius.circular(25),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _accentGray.withOpacity(0.08),
+                shape: BoxShape.circle,
+                border: Border.all(color: _dividerColor, width: 1),
+              ),
+              child: const Icon(
+                Icons.person_outline,
+                color: _accentGray,
+                size: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveTimeCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade800,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
+        color: _cardBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _getGreeting(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade300,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.person,
-                  color: Colors.grey.shade800,
-                  size: 28,
+              Icon(Icons.access_time, size: 18, color: _mediumTextColor),
+              const SizedBox(width: 8),
+              Text(
+                'Waktu Saat Ini',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _mediumTextColor,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Text(
+            currentTime,
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w900,
+              color: _accentGray,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            currentDate,
+            style: TextStyle(
+              fontSize: 13,
+              color: _mediumTextColor,
+            ),
+          ),
+          const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: _dividerColor.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: Colors.grey.shade300,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _getCurrentDate(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade300,
-                  ),
-                ),
+                _buildTimeStatus('Masuk', checkInTime ?? '--:--'),
+                Container(width: 1, height: 30, color: _dividerColor),
+                _buildTimeStatus('Pulang', checkOutTime ?? '--:--'),
               ],
             ),
           ),
@@ -307,67 +416,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAbsenCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildTimeCard(
-              'Masuk',
-              checkInTime ?? '--:--',
-              Icons.login,
-              Colors.green.shade400,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildTimeCard(
-              'Pulang',
-              checkOutTime ?? '--:--',
-              Icons.logout,
-              Colors.orange.shade400,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeCard(String label, String time, IconData icon, Color color) {
+  Widget _buildTimeStatus(String label, String time) {
+    final isSet = time != '--:--';
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(height: 8),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
+            fontSize: 11,
+            color: _mediumTextColor,
+            fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 4),
@@ -376,34 +434,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade800,
+            color: isSet ? _darkTextColor : _lightTextColor,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAbsenButtons() {
+
+  Widget _buildQuickAbsenButtons() {
     return Row(
       children: [
         Expanded(
           child: _buildAbsenButton(
-            'Absen Masuk',
-            Icons.login,
-            Colors.green.shade600,
-            isLoadingCheckIn,
-            checkInTime == null,
-            _handleCheckIn,
-          ),
+          'Check In',
+          Icons.login_rounded,
+          _darkTextColor,
+          isLoadingCheckIn,
+          canCheckIn, // <-- SEKARANG SESUAI DENGAN API
+          _handleCheckIn,
+        ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildAbsenButton(
-            'Absen Pulang',
-            Icons.logout,
-            Colors.orange.shade600,
+            'Check Out',
+            Icons.logout_rounded,
+            _mediumTextColor,
             isLoadingCheckOut,
-            checkInTime != null && checkOutTime == null,
+            canCheckOut,
             _handleCheckOut,
           ),
         ),
@@ -424,7 +483,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: Colors.grey.shade300,
+        disabledBackgroundColor: _dividerColor,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -440,15 +499,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          : Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20),
-                const SizedBox(width: 8),
+                Icon(icon, size: 24),
+                const SizedBox(height: 4),
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -457,7 +516,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatisticsSection() {
+  Widget _buildStatisticsGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -469,17 +528,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
+                color: _darkTextColor,
               ),
             ),
             TextButton(
               onPressed: () {},
-              child: Text(
-                'Lihat Detail',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'Detail',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _mediumTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 16, color: _mediumTextColor),
+                ],
               ),
             ),
           ],
@@ -491,39 +561,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: _buildStatCard(
                 'Hadir',
                 totalHadir.toString(),
-                Icons.check_circle,
-                Colors.green.shade400,
+                Icons.check_circle_outline,
+                _darkTextColor,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
                 'Izin',
                 totalIzin.toString(),
-                Icons.info,
-                Colors.blue.shade400,
+                Icons.event_note_outlined,
+                _mediumTextColor,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
               child: _buildStatCard(
                 'Alpha',
                 totalAlpha.toString(),
-                Icons.cancel,
-                Colors.red.shade400,
+                Icons.cancel_outlined,
+                _dangerColor,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _buildStatCard(
                 'Terlambat',
                 totalTerlambat.toString(),
-                Icons.access_time,
-                Colors.orange.shade400,
+                Icons.access_time_outlined,
+                _warningColor,
               ),
             ),
           ],
@@ -536,11 +606,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: _cardBackgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _dividerColor.withOpacity(0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
+            color: Colors.grey.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -563,120 +634,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              color: _darkTextColor,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.shade600,
+              color: _mediumTextColor,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTodayAttendance() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Absen Hari Ini',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              IconButton(
-                onPressed: _showLocationDetail,
-                icon: Icon(
-                  Icons.location_on,
-                  color: Colors.grey.shade600,
-                ),
-                tooltip: 'Lihat Lokasi',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildAttendanceRow(
-            'Check In',
-            checkInTime ?? 'Belum absen',
-            Icons.login,
-            Colors.green.shade400,
-          ),
-          const SizedBox(height: 12),
-          _buildAttendanceRow(
-            'Check Out',
-            checkOutTime ?? 'Belum absen',
-            Icons.logout,
-            Colors.orange.shade400,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAttendanceRow(
-    String label,
-    String time,
-    IconData icon,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

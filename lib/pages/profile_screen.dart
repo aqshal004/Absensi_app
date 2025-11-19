@@ -11,13 +11,15 @@ class ProfileScreenWidget extends StatefulWidget {
 }
 
 class _ProfileScreenWidgetState extends State<ProfileScreenWidget> {
-bool isLoading = true;
-String userName = "";
-String userEmail = "";
-int userBatch = 0;
-String userTraining = "";
-String userGender = "";
-String? profilePhotoUrl;
+  bool isLoading = true;
+  String userName = "";
+  String userEmail = "";
+  int userBatch = 0;
+  String userTraining = "";
+  String userGender = "";
+  String? profilePhotoUrl;
+  int batchId = 0;
+  int trainingId = 0;
 
   @override
   void initState() {
@@ -29,7 +31,6 @@ String? profilePhotoUrl;
     setState(() => isLoading = true);
 
     try {
-      // TODO: Implement API Call
       final profile = await ProfileAPI.getProfile();
       print(profile);
       setState(() {
@@ -41,7 +42,6 @@ String? profilePhotoUrl;
         profilePhotoUrl = profile.data?.profilePhotoUrl;
       });
 
-      // Simulasi loading
       await Future.delayed(const Duration(seconds: 1));
     } catch (e) {
       if (mounted) {
@@ -74,7 +74,6 @@ String? profilePhotoUrl;
       backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
         slivers: [
-          // App Bar dengan foto profil
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
@@ -95,7 +94,6 @@ String? profilePhotoUrl;
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 40),
-                    // Profile Photo
                     Container(
                       width: 100,
                       height: 100,
@@ -131,14 +129,11 @@ String? profilePhotoUrl;
               ),
             ),
           ),
-
-          // Content
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Name & Email Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -173,7 +168,6 @@ String? profilePhotoUrl;
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
-                        // Edit Button
                         SizedBox(
                           width: double.infinity,
                           height: 48,
@@ -185,8 +179,8 @@ String? profilePhotoUrl;
                                   builder: (context) => EditProfileScreen(
                                     name: userName,
                                     email: userEmail,
-                                    batch: userBatch.toString(),
-                                    training: userTraining,
+                                    batchId: batchId,
+                                    trainingId: trainingId,
                                     gender: userGender,
                                   ),
                                 ),
@@ -218,8 +212,6 @@ String? profilePhotoUrl;
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Information Section
                   _buildSectionTitle('Informasi'),
                   const SizedBox(height: 12),
                   _buildInfoCard(
@@ -240,8 +232,6 @@ String? profilePhotoUrl;
                     Icons.school_outlined,
                   ),
                   const SizedBox(height: 32),
-
-                  // Logout Button
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -375,10 +365,11 @@ String? profilePhotoUrl;
           ElevatedButton(
             onPressed: () {
               Navigator.pushReplacement(
-                context, 
-                MaterialPageRoute(builder: (context) => LoginScreenWidget(),));
-              // TODO: Implement logout
-              // Navigator.pop(context);
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LoginScreenWidget(),
+                ),
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Logout berhasil'),
