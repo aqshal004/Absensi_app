@@ -15,4 +15,5 @@ class Endpoint {
   static const String checkOut = "$baseUrl/api/absen/check-out";
   static const String attendanceToday = "$baseUrl/api/absen/today";
   static const String historyAbsen = "$baseUrl/api/absen/history";
+  static const String attendanceStats = "$baseUrl/api/absen/stats";
 }

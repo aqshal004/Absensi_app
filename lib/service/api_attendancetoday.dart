@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 
 import 'package:ppkd_absensi/constant/endpoint.dart';
-import 'package:ppkd_absensi/models/absen_today.dart';
+import 'package:ppkd_absensi/models/attendance_today.dart';
 
 class AbsenTodayAPI {
   /// ============================================================

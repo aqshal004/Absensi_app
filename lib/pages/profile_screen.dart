@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ppkd_absensi/constant/footer.dart';
 import 'package:ppkd_absensi/pages/editprofile_screen.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
 import 'package:ppkd_absensi/service/api_profile.dart';
@@ -259,6 +260,7 @@ class _ProfileScreenWidgetState extends State<ProfileScreenWidget> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  const CreditFooter(),
                 ],
               ),
             ),

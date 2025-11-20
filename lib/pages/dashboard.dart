@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'package:ppkd_absensi/pages/checkin.dart';
+import 'package:ppkd_absensi/pages/checkout.dart';
 import 'package:ppkd_absensi/pages/editprofile_screen.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
-import 'package:ppkd_absensi/service/api_absentoday.dart';
-import 'package:ppkd_absensi/service/api_attendance.dart';
+import 'package:ppkd_absensi/service/api_attendancetoday.dart';
 import 'package:ppkd_absensi/service/api_profile.dart';
+import 'package:ppkd_absensi/service/api_statsabsen.dart';
 
 // --- DEFINISI WARNA (Tetap dipertahankan) ---
 const Color _primaryBackgroundColor = Color(0xFFFFFFFF);
@@ -36,14 +37,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   
   bool isLoadingCheckIn = false;
   bool isLoadingCheckOut = false;
+  bool isLoadingStats = true;
   
   String? checkInTime = "--:--";
   String? checkOutTime = "--:--";
   
-  int totalHadir = 22;
-  int totalIzin = 2;
-  int totalAlpha = 1;
-  int totalTerlambat = 3;
+int totalHadir = 0;
+int totalIzin = 0;
+int totalAbsen = 0;
+int totalTerlambat = 0;
+bool sudahAbsenHariIni = false;
 
   // Live Time
   String currentTime = '';
@@ -53,6 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+     fetchStats(); 
     _loadUserProfile();
     _loadTodayAttendance();
     Intl.defaultLocale = 'id';
@@ -142,6 +146,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loadUserProfile();
     }
   }
+// =============================
+  // LOAD Stats Attendance
+  // =============================
+  Future<void> fetchStats() async {
+  final token = await PreferenceHandler.getToken(); // jika token pakai preferences
+
+  final result = await AttendanceStatsApi.getAttendanceStats(token: token);
+
+  if (result != null && result.data != null) {
+    setState(() {
+      totalHadir = result.data!.totalMasuk ?? 0;
+      totalIzin = result.data!.totalIzin ?? 0;
+      totalAbsen = result.data!.totalAbsen ?? 0;
+
+      // Jika backend punya field terlambat, tambahkan di model
+      totalTerlambat = 0;
+
+      sudahAbsenHariIni = result.data!.sudahAbsenHariIni ?? false;
+      isLoadingStats = false;
+    });
+  } else {
+    setState(() => isLoadingStats = false);
+  }
+}
 
   // =============================
   // LOAD TODAY ATTENDANCE
@@ -204,38 +232,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-
+// =============================
+  // CHECK OUT
+  // =============================
    Future<void> _handleCheckOut() async {
-    setState(() => isLoadingCheckOut = true);
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const CheckOutScreen()),
+  );
 
-    try {
-      await Future.delayed(const Duration(seconds: 2));
+  if (result == true) {
+    await _loadTodayAttendance();
 
-      if (!mounted) return;
-
-      setState(() {
-        checkOutTime = DateFormat('HH:mm').format(DateTime.now());
-        isLoadingCheckOut = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✓ Absen pulang berhasil!'),
-          backgroundColor: _successColor,
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoadingCheckOut = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: $e"),
-            backgroundColor: _dangerColor,
-          ),
-        );
-      }
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('✓ Absen pulang berhasil!'),
+        backgroundColor: _successColor,
+      ),
+    );
   }
+}
+
 
     // =============================
   // CHECK RULES
@@ -517,90 +534,101 @@ bool get canCheckOut {
   }
 
   Widget _buildStatisticsGrid() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Statistik Bulan Ini',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: _darkTextColor,
-              ),
-            ),
-            TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    'Detail',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _mediumTextColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, size: 16, color: _mediumTextColor),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Hadir',
-                totalHadir.toString(),
-                Icons.check_circle_outline,
-                _darkTextColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildStatCard(
-                'Izin',
-                totalIzin.toString(),
-                Icons.event_note_outlined,
-                _mediumTextColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Alpha',
-                totalAlpha.toString(),
-                Icons.cancel_outlined,
-                _dangerColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildStatCard(
-                'Terlambat',
-                totalTerlambat.toString(),
-                Icons.access_time_outlined,
-                _warningColor,
-              ),
-            ),
-          ],
-        ),
-      ],
+  if (isLoadingStats) {
+    return const Center(
+      child: CircularProgressIndicator(),
     );
   }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Statistik Bulan Ini',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _darkTextColor,
+            ),
+          ),
+          TextButton(
+            onPressed: () {},
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'Detail',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _mediumTextColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 16, color: _mediumTextColor),
+              ],
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+
+      /// ROW 1 — Hadir & Izin
+      Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Hadir',
+              totalHadir.toString(),
+              Icons.check_circle_outline,
+              _successColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildStatCard(
+              'Izin',
+              totalIzin.toString(),
+              Icons.event_note_outlined,
+              _mediumTextColor,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+
+      /// ROW 2 — Alpha & Terlambat
+      Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Total Absen',
+              totalAbsen.toString(),
+              Icons.bar_chart,
+              _dangerColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildStatCard(
+              'Terlambat',
+              totalTerlambat.toString(),
+              Icons.access_time_outlined,
+              _warningColor,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(

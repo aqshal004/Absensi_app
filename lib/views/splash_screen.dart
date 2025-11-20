@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ppkd_absensi/constant/footer.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
 import 'package:ppkd_absensi/views/login_screen.dart';
 
@@ -207,7 +208,10 @@ class _SplashScreenWidgetState extends State<SplashScreenWidget>with TickerProvi
                   ),
                 ),
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
+              // Credit Footer - DITAMBAHKAN DI SINI
+              const CreditFooter(),
+              const SizedBox(height: 20),
             ],
           ),
         ),

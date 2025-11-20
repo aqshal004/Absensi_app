@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ppkd_absensi/constant/footer.dart';
 import 'package:ppkd_absensi/preferences/preferences_handler.dart';
 import 'package:ppkd_absensi/service/api_register.dart';
 import 'package:ppkd_absensi/views/bottom_nav.dart';
@@ -313,6 +314,8 @@ void _handleLogin() async {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 28),
+                    const CreditFooter(),
                   ],
                 ),
               ),

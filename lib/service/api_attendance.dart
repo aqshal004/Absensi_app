@@ -63,6 +63,15 @@ class AttendanceApi {
     required String address,
   }) async {
     final url = Uri.parse(Endpoint.checkOut);
+     final now = DateTime.now();
+
+      // yyyy-MM-dd
+  final formattedDate =
+      "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+  // H:i (HH:mm)
+  final formattedTime =
+      "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     final response = await http.post(
       url,
@@ -71,6 +80,8 @@ class AttendanceApi {
         "Authorization": "Bearer $token",
       },
       body: {
+        "attendance_date": formattedDate,
+        "check_out": formattedTime,    
         "check_out_lat": lat.toString(),
         "check_out_lng": lng.toString(),
         "check_out_address": address,
