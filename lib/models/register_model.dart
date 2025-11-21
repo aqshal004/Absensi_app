@@ -76,18 +76,27 @@ class User {
     });
 
     factory User.fromJson(Map<String, dynamic> json) => User(
-        name: json["name"],
-        email: json["email"],
-        batchId: json["batch_id"],
-        trainingId: json["training_id"],
-        jenisKelamin: json["jenis_kelamin"],
-        profilePhoto: json["profile_photo"],
-        updatedAt: json["updated_at"] == null ? null : DateTime.parse(json["updated_at"]),
-        createdAt: json["created_at"] == null ? null : DateTime.parse(json["created_at"]),
-        id: json["id"],
-        batch: json["batch"] == null ? null : Batch.fromJson(json["batch"]),
-        training: json["training"] == null ? null : Training.fromJson(json["training"]),
-    );
+    name: json["name"],
+    email: json["email"],
+    batchId: json["batch_id"] is int
+        ? json["batch_id"]
+        : int.tryParse(json["batch_id"].toString()),
+    trainingId: json["training_id"] is int
+        ? json["training_id"]
+        : int.tryParse(json["training_id"].toString()),
+    jenisKelamin: json["jenis_kelamin"],
+    profilePhoto: json["profile_photo"],
+    updatedAt: json["updated_at"] == null
+        ? null
+        : DateTime.parse(json["updated_at"]),
+    createdAt: json["created_at"] == null
+        ? null
+        : DateTime.parse(json["created_at"]),
+    id: json["id"],
+    batch: json["batch"] == null ? null : Batch.fromJson(json["batch"]),
+    training: json["training"] == null ? null : Training.fromJson(json["training"]),
+);
+
 
     Map<String, dynamic> toJson() => {
         "name": name,
@@ -122,7 +131,7 @@ class Batch {
     });
 
     factory Batch.fromJson(Map<String, dynamic> json) => Batch(
-        id: json["id"],
+        id: json["id"] is int ? json["id"] : int.tryParse(json["id"].toString()),
         batchKe: json["batch_ke"],
         startDate: json["start_date"] == null ? null : DateTime.parse(json["start_date"]),
         endDate: json["end_date"] == null ? null : DateTime.parse(json["end_date"]),
@@ -171,7 +180,7 @@ class Training {
     });
 
     factory Training.fromJson(Map<String, dynamic> json) => Training(
-        id: json["id"],
+        id: json["id"] is int ? json["id"] : int.tryParse(json["id"].toString()),
         title: json["title"],
         description: json["description"],
         participantCount: json["participant_count"],

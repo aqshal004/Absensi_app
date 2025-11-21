@@ -25,11 +25,13 @@ class AbsenTodayAPI {
     log("ABSEN TODAY RESPONSE: ${response.body}");
 
     if (response.statusCode == 200) {
-      return AbsenTodayModel.fromJson(json.decode(response.body));
-    } 
-    else {
-      final error = json.decode(response.body);
-      throw Exception(error["message"] ?? "Gagal mengambil data absen hari ini");
-    }
+  return AbsenTodayModel.fromJson(json.decode(response.body));
+} else if (response.statusCode == 404) {
+  // Hari ini belum absen → Tidak error
+  return AbsenTodayModel(data: null);
+} else {
+  throw Exception(json.decode(response.body)["message"]);
+}
+
   }
 }

@@ -24,28 +24,39 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   Future<void> _getLocation() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      // Kalau user tolak izin lokasi, jangan crash
-      setState(() {
-        isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Izin lokasi ditolak")),
-      );
-      return;
-    }
-
-    Position pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("GPS tidak aktif")),
     );
-
-    setState(() {
-      currentPosition = LatLng(pos.latitude, pos.longitude);
-      isLoading = false;
-    });
+    return;
   }
+
+  LocationPermission permission = await Geolocator.checkPermission();
+
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+  }
+
+  if (permission == LocationPermission.denied ||
+      permission == LocationPermission.deniedForever) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Izin lokasi ditolak")),
+    );
+    return;
+  }
+
+  // AMAN → get lokasi
+  Position pos = await Geolocator.getCurrentPosition(
+    desiredAccuracy: LocationAccuracy.high,
+  );
+
+  setState(() {
+    currentPosition = LatLng(pos.latitude, pos.longitude);
+    isLoading = false;
+  });
+}
+
 
   Future<void> _handleCheckIn() async {
     if (currentPosition == null) return;
